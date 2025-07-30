@@ -1,12 +1,20 @@
-import {Router} from "express";
-import {getAllDepartments, createDepartment, updateDepartment, blockDepartment, activateBlockedDepartment} from "../../controllers/adminControllers/department.js";
+import { Router } from "express";
+import {
+  getAllDepartments,
+  createDepartment,
+  updateDepartment,
+  blockDepartment,
+  activateBlockedDepartment,
+  addEmployeeToDepartment,
+} from "../../controllers/adminControllers/department.js";
 
 const router = Router();
 
-router.get('/departments', getAllDepartments);
-router.post('/departments/create', createDepartment);
-router.put('/departments/update/:employeeId', updateDepartment);
-router.patch('/departments/block/:departmentId', blockDepartment);
-router.patch('/departments/activate/:departmentId', activateBlockedDepartment);
+router.get("/departments", getAllDepartments);
+router.post("/departments", createDepartment);
+router.put("/departments/:id", updateDepartment);
+router.patch("/departments/:id/block", blockDepartment);
+router.patch("/departments/:id/activate", activateBlockedDepartment);
+router.post("/departments/add-employee", addEmployeeToDepartment);
 
 export default router;

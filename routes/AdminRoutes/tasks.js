@@ -2,13 +2,22 @@
 import { Router } from "express";
 import {
   assignTask,
-  // You might add more task-related controllers here, e.g., updateTaskStatus, getEmployeeTasks, deleteTask
-} from "../../controllers/adminControllers/tasks.js"; // Assuming assignTask is in admin controller, or you might move it to a task-specific controller
+  getAllTasks,
+  getTaskById,
+  updateTask,
+  deleteTask,
+  addCommentToTask,
+} from "../../controllers/adminControllers/tasks.js";
+import { verifyToken } from "../../middleware/verifyToken.js";
+import { isAdmin } from "../../middleware/role.js";
 
 const router = Router();
 
-router.post("/assign", assignTask); // Assign a task to an employee
-router.put("/update/:taskId", updateTaskStatus); // Example: Update task status
-router.get("/employee/:employeeId", getEmployeeTasks); // Example: Get tasks for a specific employee
+router.post("/", verifyToken, isAdmin, assignTask);
+router.get("/", verifyToken, isAdmin, getAllTasks);
+router.get("/:id", verifyToken, isAdmin, getTaskById);
+router.put("/:id", verifyToken, isAdmin, updateTask);
+router.delete("/:id", verifyToken, isAdmin, deleteTask);
+router.post("/:id/comments", verifyToken, isAdmin, addCommentToTask);
 
 export default router;

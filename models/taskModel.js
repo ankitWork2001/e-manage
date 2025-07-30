@@ -1,4 +1,3 @@
-
 import mongoose from "mongoose";
 
 const TaskSchema = new mongoose.Schema(
@@ -33,7 +32,7 @@ const TaskSchema = new mongoose.Schema(
         text: String,
         postedBy: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: "Employee", 
+          ref: "Employee",
         },
         postedAt: {
           type: Date,
