@@ -1,40 +1,45 @@
 import jwt from "jsonwebtoken";
-// import User from "../models/User.js";
 import dotenv from "dotenv";
 
 dotenv.config();
 
-export const verifyToken = async (req, res, next) => {
-  try {
-    // Get token from Authorization header: "Bearer <token>"
-    const authHeader = req.headers.authorization;
+const key = process.env.JWT_SECRET_KEY || "secretKey";
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "No Auth Header" });
-    }
-
-    const token = authHeader.split(" ")[1];
-    if (!token) {
-      return res.status(401).json({ message: "No token provided" });
-    }
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "supersecretkey"
+// Generate JWT for a user
+export function generateTokenForUser(user) {
+    return jwt.sign(
+        { _id: user._id }, 
+        key, 
+        { expiresIn: "7d" }  
     );
+}
 
-    // Find user by ID from token payload
-    const user = await User.findById(decoded.id).select("-password");
+// Verify JWT and extract user info
+export function getUserByToken(token) {
+    if (!token) return null;
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+    try {
+        return jwt.verify(token, key);
+    } catch (error) {
+        console.error("JWT verification error:", error.message);
+        return null;
     }
+}
 
-    // Attach user to request
-    req.user = user;
+// Middleware to check if user is authenticated via cookies
+export function checkUserAuthentication(cookieKey) {
+    return (req, res, next) => {
+        const token = req.cookies?.[cookieKey];
 
-    next();
-  } catch (error) {
-    console.error("Auth Error:", error.message);
-    return res.status(401).json({ message: "Invalid or expired token" });
-  }
-};
+        if (!token) {
+            return next();
+        }
+
+        const user = getUserByToken(token);
+        if (user) {
+            req.user = user;
+        }
+
+        return next();
+    };
+}

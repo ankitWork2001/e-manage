@@ -4,6 +4,7 @@ const employeeSchema = new mongoose.Schema(
   {
     employeeId: { type: String, unique: true, required: true },
     name: { type: String, required: true },
+    role: {type: String, enum: ["Employee", "HR"], default: "Employee"},
     email: { type: String, unique: true },
     password: { type: String, required: true },
     phone: { type: String },

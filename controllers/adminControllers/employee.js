@@ -28,21 +28,18 @@ export const getEmployeeById = async (req, res) => {
   }
 };
 
-export const createEmployee = async (req, res) => {
+export const makeEmployeeHR = async (req, res) => {
   try {
-    const { name, email, password, department } = req.body;
-    if (!name || !email || !password || !department) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-    const employee = await employeeModel.create({
-      name,
-      email,
-      password,
-      department,
-    });
+    const employeeId = req.params.id;
+    
+    const employee = await employeeModel.findById(employeeId);
+
+    employee.role = "HR";
+    await employee.save();
+
     res
       .status(201)
-      .json({ message: "Employee created successfully", employee });
+      .json({ message: "Employee promoted as HR", employee });
   } catch (error) {
     if (error.code === 11000) {
       return res
@@ -51,7 +48,7 @@ export const createEmployee = async (req, res) => {
     }
     res
       .status(500)
-      .json({ message: "Error creating employee", error: error.message });
+      .json({ message: "Error promoting employee", error: error.message });
   }
 };
 

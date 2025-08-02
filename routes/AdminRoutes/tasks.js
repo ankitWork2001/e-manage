@@ -8,16 +8,16 @@ import {
   deleteTask,
   addCommentToTask,
 } from "../../controllers/adminControllers/tasks.js";
-import { verifyToken } from "../../middleware/verifyToken.js";
+// import { verifyToken } from "../../middleware/verifyToken.js";
 import { isAdmin } from "../../middleware/role.js";
 
 const router = Router();
 
-router.post("/", verifyToken, isAdmin, assignTask);
-router.get("/", verifyToken, isAdmin, getAllTasks);
-router.get("/:id", verifyToken, isAdmin, getTaskById);
-router.put("/:id", verifyToken, isAdmin, updateTask);
-router.delete("/:id", verifyToken, isAdmin, deleteTask);
-router.post("/:id/comments", verifyToken, isAdmin, addCommentToTask);
+router.post("/",isAdmin, assignTask);
+router.get("/", isAdmin, getAllTasks);
+router.get("/:id", isAdmin, getTaskById);
+router.put("/:id", isAdmin, updateTask);
+router.delete("/:id", isAdmin, deleteTask);
+router.post("/:id/comments", isAdmin, addCommentToTask);
 
 export default router;

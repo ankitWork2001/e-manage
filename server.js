@@ -9,6 +9,7 @@ import xss from "xss-clean";
 import hpp from "hpp";
 import compression from "compression";
 import connectDB from "./config/db.js";
+import {checkUserAuthentication} from "./middleware/verifyToken.js";
 
 // Import all the routes
 import employeeAuthRoutes from "./routes/EmployeeRoutes/auth.js";
@@ -41,6 +42,9 @@ app.use("/api", limiter);
 app.get("/", (req, res) => {
   res.send("✅ E-Manage API is running.");
 });
+
+// Middleware
+app.use(checkUserAuthentication);
 
 // Routes
 // Employee Authentication routes
