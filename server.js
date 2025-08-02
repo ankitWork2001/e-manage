@@ -39,6 +39,7 @@ const limiter = rateLimit({
   max: 100,
 });
 app.use("/api", limiter);
+
 app.get("/", (req, res) => {
   res.send("✅ E-Manage API is running.");
 });
@@ -51,7 +52,7 @@ app.use(checkUserAuthentication);
 app.use("/api/auth/employee", employeeAuthRoutes);
 
 // Employee Panel routes
-app.use("/api/employee", employeeRoutes);
+app.use("/api/employee/:id", employeeRoutes);
 app.use("/api/employee/tasks", employeeTaskRoutes); // Employee's view of tasks
 
 // HR/Admin Panel routes
