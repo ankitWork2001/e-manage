@@ -1,11 +1,39 @@
 // controllers/superAdminController.js
-import SuperAdmin from "../models/SuperAdmin.js";
+import SuperAdmin from "../../models/SuperAdmin.js";
 import DepartmentalAdmin from "../../models/departmentalAdmin.js";
-import Department from "../models/Department.js";
-import Employee from "../models/Employee.js"; // Will need for employee transfer/global view later
-import { hashPassword } from "../utils/password.js";
+import Department from "../../models/Department.js";
+import Employee from "../../models/Employee.js"; // Will need for employee transfer/global view later
+import { hashPassword } from "../../utils/paassword.js";
 import mongoose from "mongoose"; // Import mongoose for isValidObjectId check
 
+export const loginSuperAdmin = async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const superAdmin = await SuperAdmin.findOne({ email });
+    if (!superAdmin) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    const isMatch = await comparePassword(password, superAdmin.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    const token = generateToken({
+      superAdminId: superAdmin._id,
+      role: "SuperAdmin",
+    });
+    res.json({
+      token,
+      role: "SuperAdmin",
+      superAdminId: superAdmin._id,
+      name: superAdmin.name,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error during Super Admin login" });
+  }
+};
 // --- Departmental Admin Management ---
 
 export const createDepartmentalAdmin = async (req, res) => {

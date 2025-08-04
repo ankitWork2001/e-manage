@@ -4,6 +4,7 @@ import {
   authorizeRole,
 } from "../middleware/authmiddleware.js";
 import {
+  loginSuperAdmin,
   createDepartmentalAdmin,
   getAllDepartmentalAdmins,
   getDepartmentalAdminById,
@@ -19,6 +20,8 @@ import {
 } from "../controllers/superAdminControllers/superAdminController.js";
 
 const router = express.Router();
+
+router.post("/superadmin/login", loginSuperAdmin);
 
 // All Super Admin routes should be protected
 router.use(authenticateToken);
