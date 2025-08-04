@@ -1,127 +1,210 @@
-import employeeModel from "../../models/employeeModel.js";
+import Employee from "../../models/employeeModel.js";
+import { hashPassword } from "../../utils/password.js";
+import Department from "../models/Department.js";
+// --- Employee Management (within department) ---
 
-export const getAllEmployees = async (req, res) => {
+export const createEmployee = async (req, res) => {
+  const {
+    employeeId,
+    name,
+    email,
+    password,
+    phone,
+    position,
+    dateOfJoining,
+    salary,
+  } = req.body;
+  const adminDepartmentId = req.user.departmentId; // Get department from authenticated admin's token
+
   try {
-    const employees = await employeeModel.find().populate("department", "name");
-    res.status(200).json(employees);
+    // Basic validation
+    if (!employeeId || !name || !email || !password || !adminDepartmentId) {
+      return res.status(400).json({
+        message: "Missing required employee fields or admin department ID.",
+      });
+    }
+
+    // Check for unique employeeId and email across all employees
+    const existingEmployee = await Employee.findOne({
+      $or: [{ employeeId }, { email }],
+    });
+    if (existingEmployee) {
+      return res.status(400).json({
+        message: "Employee ID or email already exists in the system.",
+      });
+    }
+
+    const hashedPassword = await hashPassword(password);
+
+    const newEmployee = new Employee({
+      employeeId,
+      name,
+      email,
+      password: hashedPassword,
+      phone,
+      position,
+      department: adminDepartmentId, // Assign to the admin's department
+      dateOfJoining,
+      salary,
+    });
+    await newEmployee.save();
+
+    res.status(201).json({
+      message: "Employee created successfully",
+      employee: newEmployee,
+    });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error fetching employees", error: error.message });
+    console.error(error);
+    res.status(500).json({ message: "Server error creating employee." });
   }
 };
 
-export const getEmployeeById = async (req, res) => {
+export const getDepartmentEmployees = async (req, res) => {
+  const adminDepartmentId = req.user.departmentId;
   try {
-    const { id } = req.params;
-    const employee = await employeeModel
-      .findById(id)
+    const employees = await Employee.find({ department: adminDepartmentId })
+      .select("-password") // Exclude password from response
+      .populate("department", "name"); // Populate department name for clarity
+    res.status(200).json(employees);
+  } catch (error) {
+    console.error(error);
+    res
+      .status(500)
+      .json({ message: "Server error fetching department employees." });
+  }
+};
+
+export const getDepartmentEmployeeById = async (req, res) => {
+  const { employeeId } = req.params; // This is the employee's string employeeId
+  const adminDepartmentId = req.user.departmentId;
+
+  try {
+    // Using employeeId string, not MongoDB _id
+    const employee = await Employee.findOne({
+      employeeId,
+      department: adminDepartmentId,
+    })
+      .select("-password")
       .populate("department", "name");
+
     if (!employee) {
-      return res.status(404).json({ message: "Employee not found" });
+      return res
+        .status(404)
+        .json({ message: "Employee not found in your department." });
     }
     res.status(200).json(employee);
   } catch (error) {
+    console.error(error);
     res
       .status(500)
-      .json({ message: "Error fetching employee", error: error.message });
+      .json({ message: "Server error fetching employee details." });
   }
 };
 
-export const createEmployee = async (req, res) => {
+export const updateDepartmentEmployee = async (req, res) => {
+  const { employeeId } = req.params; // Employee's string employeeId
+  const { name, email, phone, position, dateOfJoining, status } = req.body; // Salary update is for HR admin
+  const adminDepartmentId = req.user.departmentId;
+
   try {
-    const { name, email, password, department } = req.body;
-    if (!name || !email || !password || !department) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-    const employee = await employeeModel.create({
-      name,
-      email,
-      password,
-      department,
+    const employee = await Employee.findOne({
+      employeeId,
+      department: adminDepartmentId,
     });
-    res
-      .status(201)
-      .json({ message: "Employee created successfully", employee });
-  } catch (error) {
-    if (error.code === 11000) {
-      return res
-        .status(409)
-        .json({ message: "An employee with this email already exists." });
-    }
-    res
-      .status(500)
-      .json({ message: "Error creating employee", error: error.message });
-  }
-};
-
-export const updateEmployee = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name, email, password, department } = req.body;
-
-    const employee = await employeeModel.findByIdAndUpdate(
-      id,
-      {
-        name,
-        email,
-        password,
-        department,
-      },
-      { new: true }
-    );
-
     if (!employee) {
-      return res.status(404).json({ message: "Employee not found" });
+      return res
+        .status(404)
+        .json({ message: "Employee not found in your department." });
     }
 
+    if (name) employee.name = name;
+    if (email && email !== employee.email) {
+      // Check for email uniqueness if changed, excluding the current employee
+      const emailTaken = await Employee.findOne({
+        email,
+        _id: { $ne: employee._id },
+      });
+      if (emailTaken) {
+        return res
+          .status(400)
+          .json({ message: "Email already in use by another employee." });
+      }
+      employee.email = email;
+    }
+    if (phone) employee.phone = phone;
+    if (position) employee.position = position;
+    if (dateOfJoining) employee.dateOfJoining = dateOfJoining;
+    if (status) employee.status = status; // Consider enum validation if not handled by schema
+
+    await employee.save();
     res
       .status(200)
       .json({ message: "Employee updated successfully", employee });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error updating employee", error: error.message });
+    console.error(error);
+    res.status(500).json({ message: "Server error updating employee." });
   }
 };
 
-export const blockEmployee = async (req, res) => {
+export const updateEmployeeStatus = async (req, res) => {
+  const { employeeId } = req.params; // Employee's string employeeId
+  const { status } = req.body; // 'Active' or 'Inactive'
+  const adminDepartmentId = req.user.departmentId;
+
   try {
-    const { id } = req.params;
-    const employee = await employeeModel.findById(id);
+    const employee = await Employee.findOne({
+      employeeId,
+      department: adminDepartmentId,
+    });
     if (!employee) {
-      return res.status(404).json({ message: "Employee not found" });
+      return res
+        .status(404)
+        .json({ message: "Employee not found in your department." });
     }
-    if (employee.status === "Inactive") {
-      return res.status(400).json({ message: "Employee is already inactive" });
+    if (!["Active", "Inactive"].includes(status)) {
+      return res.status(400).json({
+        message: "Invalid status provided. Must be Active or Inactive.",
+      });
     }
-    employee.status = "Inactive";
+
+    employee.status = status;
     await employee.save();
+
     res
       .status(200)
-      .json({ message: "Employee blocked successfully", employee });
+      .json({ message: "Employee status updated successfully", employee });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error blocking employee", error: error.message });
+    console.error(error);
+    res.status(500).json({ message: "Server error updating employee status." });
   }
 };
 
-export const activateBlockedEmployee = async (req, res) => {
+// --- Employee Salary Management (HR Admin specific access) ---
+
+export const updateEmployeeSalary = async (req, res) => {
+  const { employeeId } = req.params;
+  const { salary } = req.body; // The new salary amount
+
+  if (typeof salary !== "number" || salary < 0) {
+    return res
+      .status(400)
+      .json({ message: "Salary must be a positive number." });
+  }
+
   try {
-    const { id } = req.params;
-    const employee = await employeeModel.findById(id);
+    const employee = await Employee.findById(employeeId); // HR Admin can update any employee's salary
     if (!employee) {
-      return res.status(404).json({ message: "Employee not found" });
+      return res.status(404).json({ message: "Employee not found." });
     }
-    employee.status = "Active";
+
+    employee.salary = salary;
     await employee.save();
+
     res
       .status(200)
-      .json({ message: "Employee activated successfully", employee });
+      .json({ message: "Employee salary updated successfully.", employee });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error activating employee", error: error.message });
+    console.error(error);
+    res.status(500).json({ message: "Server error updating employee salary." });
   }
 };
