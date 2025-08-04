@@ -18,6 +18,7 @@ import employeeTaskRoutes from "./routes/EmployeeRoutes/tasks.js";
 import adminRoutes from "./routes/AdminRoutes/auth.js";
 import departmentRoutes from "./routes/AdminRoutes/department.js";
 import adminTaskRoutes from "./routes/AdminRoutes/tasks.js";
+import documentRoutes from "./routes/documentRoutes.js";
 
 dotenv.config();
 connectDB();
@@ -33,6 +34,19 @@ app.use(xss());
 app.use(hpp());
 app.use(compression());
 
+// Middleware
+app.use(checkUserAuthentication("authToken"));
+
+
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on("finish", () => {
+    console.log(`${req.method} ${req.originalUrl} - ${Date.now() - start}ms`);
+  });
+  next();
+});
+
+
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -44,8 +58,8 @@ app.get("/", (req, res) => {
   res.send("✅ E-Manage API is running.");
 });
 
-// Middleware
-app.use(checkUserAuthentication);
+
+app.use("/api/employee/documents/",documentRoutes);
 
 // Routes
 // Employee Authentication routes

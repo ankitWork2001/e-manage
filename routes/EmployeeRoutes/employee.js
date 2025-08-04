@@ -1,4 +1,5 @@
-import { Router } from "express";
+import express from "express";
+const router = express.Router({ mergeParams: true });
 import {
   getEmployeeProfile,
   updateEmployeeProfile,
@@ -8,7 +9,6 @@ import {
   getEmployeePayslip,
 } from "../../controllers/employeeControllers/employee.js";
 
-const router = Router();
 
 router.get("/profile", getEmployeeProfile);
 router.put("/update", updateEmployeeProfile);
