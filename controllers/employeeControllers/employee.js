@@ -6,10 +6,11 @@ import Payroll from "../../models/payrollModel.js";
 
 export const getEmployeeProfile = async (req, res) => {
   const employeeId = req.params.id;
+  console.log(employeeId);
   try {
     const employee = await Employee.findById(employeeId);
     if (!employee) {
-      return res.status(404).json({ message: "Employee not found" });
+      return res.status(404).json({ message: "Employee not found!!!" });
     }
     res
       .status(200)

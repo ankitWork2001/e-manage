@@ -24,6 +24,7 @@ export const registerEmployee = async (req, res) => {
       password,
     } = req.body;
 
+
     if (!name || !email || !password || !phone) {
       return res
         .status(400)

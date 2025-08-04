@@ -3,14 +3,14 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const key = process.env.JWT_SECRET_KEY || "secretKey";
+const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY || "secretKey";
 
 // Generate JWT for a user
 export function generateTokenForUser(user) {
     return jwt.sign(
-        { _id: user._id }, 
-        key, 
-        { expiresIn: "7d" }  
+        { _id: user._id },
+        JWT_SECRET_KEY,
+        { expiresIn: "7d" }
     );
 }
 
@@ -19,7 +19,8 @@ export function getUserByToken(token) {
     if (!token) return null;
 
     try {
-        return jwt.verify(token, key);
+        const decoded = jwt.verify(token, JWT_SECRET_KEY);
+        return decoded;
     } catch (error) {
         console.error("JWT verification error:", error.message);
         return null;
@@ -27,13 +28,10 @@ export function getUserByToken(token) {
 }
 
 // Middleware to check if user is authenticated via cookies
-export function checkUserAuthentication(cookieKey) {
+export function checkUserAuthentication(cookieKey = "authToken") {
     return (req, res, next) => {
         const token = req.cookies?.[cookieKey];
-
-        if (!token) {
-            return next();
-        }
+        if (!token) return next();
 
         const user = getUserByToken(token);
         if (user) {
