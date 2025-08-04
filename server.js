@@ -17,6 +17,7 @@ import employeeTaskRoutes from "./routes/EmployeeRoutes/tasks.js";
 import adminRoutes from "./routes/AdminRoutes/auth.js";
 import departmentRoutes from "./routes/AdminRoutes/department.js";
 import adminTaskRoutes from "./routes/AdminRoutes/tasks.js";
+import superAdminRoutes from "./routes/superAdminRoutes.js";
 
 dotenv.config();
 connectDB();
@@ -40,6 +41,10 @@ const limiter = rateLimit({
 app.use("/api", limiter);
 
 // Routes
+
+//Super Admin routes
+app.use("/api/superadmin", superAdminRoutes);
+
 // Employee Authentication routes
 app.use("/api/auth/employee", employeeAuthRoutes);
 
@@ -47,7 +52,7 @@ app.use("/api/auth/employee", employeeAuthRoutes);
 app.use("/api/employee", employeeRoutes);
 app.use("/api/employee/tasks", employeeTaskRoutes); // Employee's view of tasks
 
-// HR/Admin Panel routes
+// Departmental Admin routes
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin/departments", departmentRoutes); // Admin department routes
 app.use("/api/admin/tasks", adminTaskRoutes);

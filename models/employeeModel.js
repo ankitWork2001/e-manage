@@ -8,9 +8,14 @@ const employeeSchema = new mongoose.Schema(
     password: { type: String, required: true },
     phone: { type: String },
     position: { type: String },
-    department: { type: String },
+    department: {
+      // Changed to ObjectId reference
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
+      required: true,
+    },
     dateOfJoining: { type: Date },
-    salary: { type: Number },
+    salary: { type: Number }, // Kept for current basic salary, access restricted by HR role
     status: { type: String, enum: ["Active", "Inactive"], default: "Active" },
   },
   { timestamps: true }

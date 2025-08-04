@@ -1,39 +1,66 @@
-import adminModel from "../../models/adminModel.js";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import SuperAdmin from "../models/SuperAdmin.js";
+import DepartmentalAdmin from "../../models/departmentalAdmin.js";
+import { comparePassword } from "../utils/password.js";
+import { generateToken } from "../utils/jwt.js";
 
-// Secret for JWT
-const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key";
-const JWT_Expires = process.env.JWT_Expires || "1h" ;
-
-export const adminLogin = async (req, res) => {
+export const loginSuperAdmin = async (req, res) => {
+  const { email, password } = req.body;
   try {
-    const { email, password } = req.body;
+    const superAdmin = await SuperAdmin.findOne({ email });
+    if (!superAdmin) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
 
-    const admin = await adminModel.findOne({ email });
-    if (!admin) return res.status(404).json({ message: "Admin not found" });
+    const isMatch = await comparePassword(password, superAdmin.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
 
-    const isMatch = await bcrypt.compare(password, admin.password);
-    if (!isMatch) return res.status(401).json({ message: "Invalid credentials" });
-
-    const token = jwt.sign({ id: admin._id }, JWT_SECRET, { expiresIn:  JWT_Expires });
-
-     res.setHeader("Authorization", `Bearer ${token}`);
-    res.status(200).json({
-      message: "Login successful",
-      user : admin,
-      token,
+    const token = generateToken({
+      superAdminId: superAdmin._id,
+      role: "SuperAdmin",
     });
-  } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
+    res.json({
+      token,
+      role: "SuperAdmin",
+      superAdminId: superAdmin._id,
+      name: superAdmin.name,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error during Super Admin login" });
   }
 };
 
-export const adminLogout = async (req, res) => {
+export const loginAdmin = async (req, res) => {
+  const { email, password } = req.body;
   try {
-    res.setHeader("Authorization", ``);
-    res.status(200).json({ message: "Logout successful" });
-  } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
+    const admin = await DepartmentalAdmin.findOne({ email });
+    if (!admin) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    const isMatch = await comparePassword(password, admin.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    const token = generateToken({
+      adminId: admin._id,
+      role: "DepartmentAdmin",
+      departmentId: admin.department,
+    });
+    res.json({
+      token,
+      role: "DepartmentAdmin",
+      adminId: admin._id,
+      departmentId: admin.department,
+      name: admin.name,
+    });
+  } catch (error) {
+    console.error(error);
+    res
+      .status(500)
+      .json({ message: "Server error during Departmental Admin login" });
   }
 };

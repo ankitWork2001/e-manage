@@ -19,7 +19,7 @@ const TaskSchema = new mongoose.Schema(
     },
     assignedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Admin",
+      ref: "DepartmentalAdmin",
       required: true,
     },
     status: {
