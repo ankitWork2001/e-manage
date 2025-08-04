@@ -10,9 +10,9 @@ dotenv.config();
 const createInitialSuperAdmin = async () => {
   await connectDB();
   try {
-    const email = "superadmin@gmail.com";
-    const password = "superadmin@123"; // Change this to a strong password
-    const name = "Main Super Admin";
+    const email = process.env.EMAIL_USER;
+    const password = process.env.EMAIL_PASS;
+    const name = "Super Admin";
 
     const existingSuperAdmin = await SuperAdmin.findOne({ email });
     if (existingSuperAdmin) {
