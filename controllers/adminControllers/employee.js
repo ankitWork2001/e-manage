@@ -1,6 +1,5 @@
 import Employee from "../../models/employeeModel.js";
 import { hashPassword } from "../../utils/password.js";
-import Department from "../models/Department.js";
 // --- Employee Management (within department) ---
 
 export const createEmployee = async (req, res) => {
