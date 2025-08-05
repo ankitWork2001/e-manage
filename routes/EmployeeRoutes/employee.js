@@ -7,8 +7,14 @@ import {
   applyForLeave,
   getEmployeePayslip,
 } from "../../controllers/employeeControllers/employee.js";
-
+import {
+  authenticateToken,
+  authorizeRole,
+} from "../../middleware/authmiddleware.js";
 const router = Router();
+
+router.use(authenticateToken);
+router.use(authorizeRole(["Employee"]));
 
 router.get("/profile", getEmployeeProfile);
 router.put("/update", updateEmployeeProfile);
