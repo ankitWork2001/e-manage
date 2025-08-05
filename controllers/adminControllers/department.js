@@ -118,7 +118,6 @@ export const addEmployeeToDepartment = async (req, res) => {
     // Corrected: Find the employee by their unique string ID
     const employee = await employeeModel.findOne({ employeeId });
 
-    console.log(employee, department);
     if (!department) {
       return res.status(404).json({ message: "New department not found" });
     }
