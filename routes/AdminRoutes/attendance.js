@@ -16,7 +16,7 @@ router.use(authorizeRole(["DepartmentAdmin"]));
 
 // --- Attendance Management (within department scope) ---
 router.get("/department", getDepartmentAttendance); // Fetch attendance for department
-router.post("/:id/mark", markEmployeeAttendance); // Mark/update attendance for an employee
-router.post("/:id", getEmployeeAttendance); // Get attendance for a specific employee by ID
+router.post("/:employeeId/mark", markEmployeeAttendance); // Mark/update attendance for an employee
+router.get("/:employeeId", getEmployeeAttendance); // Get attendance for a specific employee by ID
 
 export default router;

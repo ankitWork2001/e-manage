@@ -37,15 +37,13 @@ export const getDepartmentAttendance = async (req, res) => {
 };
 
 export const markEmployeeAttendance = async (req, res) => {
-  const { employeeId, date, status } = req.body; // employeeObjectId is MongoDB _id
+  // The employeeId from the body is the CUSTOM STRING ID (e.g., 'EMP003')
+  const { employeeId: customEmployeeId, date, status } = req.body;
   const adminDepartmentId = req.user.departmentId;
 
   try {
-    // Verify employee belongs to admin's department
-    const employee = await Employee.findOne({
-      employeeId: employeeId,
-      department: adminDepartmentId,
-    });
+    // 1. Find the Employee document using their CUSTOM STRING ID
+    const employee = await Employee.findOne({ employeeId: customEmployeeId }); // 2. Check if the employee exists and is in the admin's department
     if (
       !employee ||
       employee.department.toString() !== adminDepartmentId.toString()
@@ -53,12 +51,13 @@ export const markEmployeeAttendance = async (req, res) => {
       return res.status(403).json({
         message: "Employee not found in your department or unauthorized.",
       });
-    }
+    } // From this point on, use the employee's MongoDB _id (employee._id) // This resolves the CastError. // 3. Normalize the date
 
-    // Check if attendance for this employee and date already exists
+    const attendanceDate = new Date(date).setHours(0, 0, 0, 0); // 4. Check if attendance for this employee and date already exists
+
     let attendance = await Attendance.findOne({
-      employeeId: employeeObjectId,
-      date: new Date(date).setHours(0, 0, 0, 0),
+      employeeId: employee._id, // Use the MongoDB _id here
+      date: attendanceDate,
     });
 
     if (attendance) {
@@ -71,8 +70,8 @@ export const markEmployeeAttendance = async (req, res) => {
     } else {
       // Create new record
       attendance = new Attendance({
-        employeeId: employeeObjectId,
-        date: new Date(date).setHours(0, 0, 0, 0), // Normalize date to start of day
+        employeeId: employee._id, // Use the MongoDB _id here
+        date: attendanceDate,
         status,
       });
       await attendance.save();
@@ -96,6 +95,7 @@ export const getEmployeeAttendance = async (req, res) => {
       employeeId,
       department: adminDepartmentId,
     });
+    console.log(employee);
     if (!employee) {
       return res
         .status(404)
