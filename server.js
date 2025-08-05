@@ -20,7 +20,7 @@ import adminTaskRoutes from "./routes/AdminRoutes/tasks.js";
 import superAdminRoutes from "./routes/superAdminRoutes.js";
 import documentRoutes from "./routes/documentRoutes.js";
 import adminEmployeeRoutes from "./routes/AdminRoutes/employee.js";
-
+import adminAttendanceRoutes from "./routes/AdminRoutes/attendance.js";
 dotenv.config();
 connectDB();
 
@@ -59,6 +59,7 @@ app.use("/api/employee/documents/", documentRoutes); // Employee's view of docum
 // Departmental Admin routes
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin/departments", departmentRoutes); // Admin department routes
+app.use("/api/admin/attendance", adminAttendanceRoutes); // Admin's view of attendance
 app.use("/api/admin/tasks", adminTaskRoutes);
 app.use("/api/admin/employees", adminEmployeeRoutes); // Admin's view of employees
 

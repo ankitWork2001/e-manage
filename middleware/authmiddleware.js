@@ -2,7 +2,10 @@
 import { verifyToken } from "../utils/jwt.js";
 import DepartmentalAdmin from "../models/departmentalAdmin.js";
 import Employee from "../models/employeeModel.js";
-import Department from "../models/departmentModel.js"; // Needed to check HR department
+import Department from "../models/departmentModel.js";
+import LeaveRequest from "../models/leaveRequestModel.js"; // Corrected: Added LeaveRequest model
+import Task from "../models/taskModel.js"; // Corrected: Added Task model
+import mongoose from "mongoose"; // Added for ObjectId validation
 
 export const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
@@ -19,7 +22,7 @@ export const authenticateToken = (req, res, next) => {
     return res.status(403).json({ message: "Invalid or expired token" });
   }
 
-  req.user = decoded; // Attach user payload to request
+  req.user = decoded;
   next();
 };
 
@@ -38,76 +41,155 @@ export const authorizeRole = (roles) => (req, res, next) => {
 };
 
 export const authorizeDepartmentAccess = async (req, res, next) => {
+  // SuperAdmin has full access, no need to check further
   if (req.user.role === "SuperAdmin") {
-    return next(); // SuperAdmin has global access
+    return next();
   }
 
+  // --- Departmental Admin Access Check ---
   if (req.user.role === "DepartmentAdmin") {
     const departmentIdFromToken = req.user.departmentId;
-    const resourceId =
-      req.params.employeeId || req.params.leaveId || req.params.taskId; // Add other IDs as needed
+    const { employeeId, leaveId, taskId, payrollId } = req.params;
 
-    if (!resourceId) {
-      // This middleware is for specific resource access within a department.
-      // If no resource ID is provided, it's likely a list request or creation, which needs different handling.
-      // For now, let's assume if no ID, it's a list operation of own department's resources.
-      return next(); // For 'get all employees in my department' type calls
+    // For list or creation requests (no resource ID), pass through
+    if (!employeeId && !leaveId && !taskId && !payrollId) {
+      return next();
     }
 
     try {
       let resource;
-      if (req.params.employeeId) {
-        resource = await Employee.findById(resourceId);
-      } else if (req.params.leaveId) {
-        resource = await LeaveRequest.findById(resourceId).populate(
+      let resourceDepartmentId;
+
+      if (employeeId) {
+        // Corrected: Use findOne to search by custom string employeeId or ObjectId
+        const employee = await Employee.findOne({
+          $or: [
+            { employeeId },
+            { _id: mongoose.isValidObjectId(employeeId) ? employeeId : null },
+          ],
+        });
+        if (!employee)
+          return res.status(404).json({ message: "Employee not found." });
+        resourceDepartmentId = employee.department.toString();
+      } else if (leaveId) {
+        // Corrected: More efficient lookup
+        const leaveRequest = await LeaveRequest.findById(leaveId).populate(
           "employeeId"
         );
-        resource.department = resource.employeeId.department; // Get department from associated employee
-      } else if (req.params.taskId) {
-        resource = await Task.findById(resourceId).populate("assignedTo");
-        resource.department = resource.assignedTo.department; // Get department from assigned employee
+        if (!leaveRequest || !leaveRequest.employeeId)
+          return res.status(404).json({ message: "Leave request not found." });
+        resourceDepartmentId = leaveRequest.employeeId.department.toString();
+      } else if (taskId) {
+        // Corrected: More efficient lookup
+        const task = await Task.findById(taskId).populate("assignedTo");
+        if (!task || !task.assignedTo)
+          return res.status(404).json({ message: "Task not found." });
+        resourceDepartmentId = task.assignedTo.department.toString();
+      } else if (payrollId) {
+        // Assuming a payroll ID parameter exists
+        const payroll = await Payroll.findById(payrollId).populate(
+          "employeeId"
+        );
+        if (!payroll || !payroll.employeeId)
+          return res.status(404).json({ message: "Payroll record not found." });
+        resourceDepartmentId = payroll.employeeId.department.toString();
       }
-      // Add other resource types (e.g., Attendance, Payroll) as needed
 
-      if (!resource) {
-        return res.status(404).json({ message: "Resource not found" });
+      // Final check to see if the resource's department matches the admin's department
+      if (resourceDepartmentId !== departmentIdFromToken.toString()) {
+        return res
+          .status(403)
+          .json({
+            message:
+              "Access denied: Resource does not belong to your department.",
+          });
       }
 
-      if (resource.department.toString() !== departmentIdFromToken) {
-        return res.status(403).json({
-          message: "Access denied: Resource does not belong to your department",
-        });
-      }
       next();
     } catch (error) {
       console.error(error);
       res
         .status(500)
-        .json({ message: "Server error during department access check" });
+        .json({ message: "Server error during department access check." });
     }
-  } else {
-    // For Employee role, they should only access their own resources
-    if (req.user.role === "Employee") {
-      const resourceId =
-        req.params.employeeId || req.params.leaveId || req.params.taskId;
-      if (resourceId && resourceId !== req.user.employeeId) {
-        return res.status(403).json({
-          message: "Access denied: You can only access your own resources",
+  }
+
+  // --- Employee Access Check (for self-service) ---
+  else if (req.user.role === "Employee") {
+    const { employeeId, leaveId, taskId, payrollId } = req.params;
+
+    // Direct access to a resource via ID
+    if (
+      employeeId &&
+      employeeId.toString() !== req.user.employeeId.toString()
+    ) {
+      return res
+        .status(403)
+        .json({
+          message: "Access denied: You can only access your own employee data.",
         });
+    }
+    // Checking leave request ownership
+    if (leaveId) {
+      const leaveRequest = await LeaveRequest.findById(leaveId);
+      if (
+        !leaveRequest ||
+        leaveRequest.employeeId.toString() !== req.user.employeeId.toString()
+      ) {
+        return res
+          .status(403)
+          .json({
+            message:
+              "Access denied: You can only access your own leave requests.",
+          });
       }
     }
+    // Checking task ownership
+    if (taskId) {
+      const task = await Task.findById(taskId);
+      if (
+        !task ||
+        task.assignedTo.toString() !== req.user.employeeId.toString()
+      ) {
+        return res
+          .status(403)
+          .json({
+            message: "Access denied: You can only access your own tasks.",
+          });
+      }
+    }
+    // Checking payroll ownership
+    if (payrollId) {
+      const payroll = await Payroll.findById(payrollId);
+      if (
+        !payroll ||
+        payroll.employeeId.toString() !== req.user.employeeId.toString()
+      ) {
+        return res
+          .status(403)
+          .json({
+            message: "Access denied: You can only access your own payroll.",
+          });
+      }
+    }
+
     next();
+  } else {
+    // For any other unexpected roles, deny access
+    return res
+      .status(403)
+      .json({ message: "Access denied: Role not authorized." });
   }
 };
 
 export const authorizeHRAdmin = async (req, res, next) => {
   if (req.user.role === "SuperAdmin") {
-    return next(); // SuperAdmin can do anything
+    return next();
   }
   if (req.user.role !== "DepartmentAdmin" || !req.user.departmentId) {
     return res
       .status(403)
-      .json({ message: "Access denied: Not a departmental admin" });
+      .json({ message: "Access denied: Not a departmental admin." });
   }
 
   try {
@@ -124,6 +206,6 @@ export const authorizeHRAdmin = async (req, res, next) => {
     next();
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Server error during HR admin check" });
+    res.status(500).json({ message: "Server error during HR admin check." });
   }
 };

@@ -37,18 +37,15 @@ export const getDepartmentAttendance = async (req, res) => {
 };
 
 export const markEmployeeAttendance = async (req, res) => {
-  const { employeeObjectId, date, status } = req.body; // employeeObjectId is MongoDB _id
+  const { employeeId, date, status } = req.body; // employeeObjectId is MongoDB _id
   const adminDepartmentId = req.user.departmentId;
 
   try {
-    if (!mongoose.isValidObjectId(employeeObjectId)) {
-      return res
-        .status(400)
-        .json({ message: "Invalid employee object ID format." });
-    }
-
     // Verify employee belongs to admin's department
-    const employee = await Employee.findById(employeeObjectId);
+    const employee = await Employee.findOne({
+      employeeId: employeeId,
+      department: adminDepartmentId,
+    });
     if (
       !employee ||
       employee.department.toString() !== adminDepartmentId.toString()
@@ -86,5 +83,36 @@ export const markEmployeeAttendance = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error marking attendance." });
+  }
+};
+
+export const getEmployeeAttendance = async (req, res) => {
+  const { employeeId } = req.params; // This is the employee's string employeeId
+  const adminDepartmentId = req.user.departmentId;
+
+  try {
+    // Using employeeId string, not MongoDB _id
+    const employee = await Employee.findOne({
+      employeeId,
+      department: adminDepartmentId,
+    });
+    if (!employee) {
+      return res
+        .status(404)
+        .json({ message: "Employee not found in your department." });
+    }
+
+    const attendanceRecords = await Attendance.find({
+      employeeId: employee._id,
+    })
+      .populate("employeeId", "name employeeId department") // Populate employee name/ID
+      .sort({ date: -1 });
+
+    res.status(200).json(attendanceRecords);
+  } catch (error) {
+    console.error(error);
+    res
+      .status(500)
+      .json({ message: "Server error fetching attendance for employee." });
   }
 };
