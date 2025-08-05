@@ -68,7 +68,7 @@ export const uploadEmployeeDocuments = multer({
 
 export const uploadTaskAttachments = multer({
   storage: storageTaskAttachments,
-  limits: { fileSize: 1024 * 1024 * 5 }, // 5 MB limit
+  limits: { fileSize: 1024 * 1024 * 10 }, // 5 MB limit
 });
 
 // 4. Export the cloudinary instance for deletion operations in controllers
