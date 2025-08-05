@@ -9,6 +9,6 @@ const router = Router();
 
 router.use(authenticateToken);
 router.use(authorizeRole(["SuperAdmin", "DepartmentAdmin"]));
-router.post("/department/add-employee", addEmployeeToDepartment);
+router.post("/add-employee", addEmployeeToDepartment);
 
 export default router;

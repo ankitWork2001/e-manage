@@ -58,7 +58,7 @@ app.use("/api/employee/documents/", documentRoutes); // Employee's view of docum
 
 // Departmental Admin routes
 app.use("/api/admin", adminRoutes);
-app.use("/api/admin/departments", departmentRoutes); // Admin department routes
+app.use("/api/admin/department", departmentRoutes); // Admin department routes
 app.use("/api/admin/attendance", adminAttendanceRoutes); // Admin's view of attendance
 app.use("/api/admin/tasks", adminTaskRoutes);
 app.use("/api/admin/employees", adminEmployeeRoutes); // Admin's view of employees

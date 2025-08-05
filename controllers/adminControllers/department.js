@@ -109,35 +109,48 @@ export const activateBlockedDepartment = async (req, res) => {
 
 export const addEmployeeToDepartment = async (req, res) => {
   try {
-    const { departmentId, employeeId } = req.body;
-    const [department, employee] = await Promise.all([
-      departmentModel.findById(departmentId),
-      employeeModel.findById(employeeId),
-    ]);
+    // Corrected: Destructure employeeId and departmentName from the body
+    const { employeeId, departmentName } = req.body;
 
+    // Corrected: Find the department by its unique name
+    const department = await departmentModel.findOne({ name: departmentName });
+
+    // Corrected: Find the employee by their unique string ID
+    const employee = await employeeModel.findOne({ employeeId });
+
+    console.log(employee, department);
     if (!department) {
-      return res.status(404).json({ message: "Department not found" });
+      return res.status(404).json({ message: "New department not found" });
     }
     if (!employee) {
       return res.status(404).json({ message: "Employee not found" });
     }
 
-    if (department.associatedEmployees.includes(employee._id)) {
+    // Check if the employee is already in this department to avoid unnecessary updates
+    if (
+      employee.department &&
+      employee.department.toString() === department._id.toString()
+    ) {
       return res
         .status(400)
-        .json({ message: "Employee already associated with this department" });
+        .json({ message: "Employee is already in this department" });
     }
 
-    department.associatedEmployees.push(employee._id);
-    await department.save();
+    // Update the employee's department field using the department's MongoDB _id
+    employee.department = department._id;
+    await employee.save();
 
     res.status(200).json({
-      message: "Employee added to department successfully",
-      department,
+      message: `Employee ${employee.name} department updated to ${department.name} successfully`,
+      employee: {
+        _id: employee._id,
+        name: employee.name,
+        department: employee.department,
+      },
     });
   } catch (error) {
     res.status(500).json({
-      message: "Error adding employee to department",
+      message: "Error updating employee department",
       error: error.message,
     });
   }
