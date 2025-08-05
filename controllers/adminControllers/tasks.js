@@ -1,7 +1,7 @@
 import Task from "../../models/taskModel.js";
 import Employee from "../../models/employeeModel.js";
 import mongoose from "mongoose";
-
+import { cloudinary } from "../../middleware/multerConfig.js";
 // --- Task Management (within department) ---
 
 export const assignTask = async (req, res) => {
@@ -315,19 +315,20 @@ export const addAttachmentToTask = async (req, res) => {
       return res.status(400).json({ message: "Invalid task ID format." });
     }
 
-    // Multer has processed the file and added req.file
     if (!req.file) {
       return res.status(400).json({ message: "No file uploaded." });
     }
 
-    // Corrected: Use secure_url from multer-cloudinary
-    const { originalname, secure_url } = req.file;
+    // Corrected: Use req.file.path for the uploaded file's URL
+    const { originalname, path } = req.file;
 
+    // Find the task document
     const task = await Task.findById(id).populate("assignedTo", "department");
     if (!task) {
       return res.status(404).json({ message: "Task not found." });
     }
 
+    // Access control check
     const isAssignedByMe =
       task.assignedBy.toString() === req.user.adminId.toString();
     const isAssignedToMyDeptEmployee =
@@ -342,13 +343,17 @@ export const addAttachmentToTask = async (req, res) => {
       });
     }
 
+    // Push the new attachment object with the fileUrl to the attachments array
     task.attachments.push({
       fileName: originalname,
-      fileUrl: secure_url, // Use the Cloudinary secure URL
+      fileUrl: path, // <-- CRUCIAL FIX: Using req.file.path
       uploadedAt: Date.now(),
     });
+
+    // Save the updated task document to the database
     await task.save();
 
+    // The saved task document is now up-to-date and will be sent in the response
     res.status(200).json({ message: "Attachment added successfully.", task });
   } catch (error) {
     console.error(error);
