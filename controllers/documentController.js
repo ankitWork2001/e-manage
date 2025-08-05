@@ -1,4 +1,5 @@
 import EmployeeDocuments from "../models/docx.js";
+import { cloudinary } from "../config/cloudinary.js";
 
 export const uploadDynamicDocuments = async (req, res) => {
   try {
@@ -73,7 +74,16 @@ export const deleteDocumentByKey = async (req, res) => {
     const publicId = `${folder}/${publicIdWithExt.split(".")[0]}`;
 
     // Delete from Cloudinary
-    await cloudinary.uploader.destroy(publicId, { resource_type: "auto" });
+    const extension = publicIdWithExt.split(".").pop().toLowerCase();
+let resourceType = "image";
+
+if (["pdf", "doc", "docx", "txt"].includes(extension)) {
+  resourceType = "raw";
+} else if (["mp4", "avi", "mov"].includes(extension)) {
+  resourceType = "video";
+}
+
+await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
 
     // Remove key from MongoDB
     doc.documents.delete(key);
@@ -90,11 +100,12 @@ export const deleteDocumentByKey = async (req, res) => {
 export const updateDocumentByKey = async (req, res) => {
   try {
     const { employeeId, key } = req.params;
-    const newFile = req.file;
 
-    if (!newFile) {
+    if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: "No file uploaded." });
     }
+
+    const newFile = req.files[0];
 
     const doc = await EmployeeDocuments.findOne({ employeeId });
     if (!doc || !doc.documents.has(key)) {
@@ -110,10 +121,19 @@ export const updateDocumentByKey = async (req, res) => {
     const folder = parts[parts.length - 2];
     const publicId = `${folder}/${publicIdWithExt.split(".")[0]}`;
 
-    await cloudinary.uploader.destroy(publicId, { resource_type: "auto" });
+    // Detect correct resource type
+    const extension = publicIdWithExt.split(".").pop().toLowerCase();
+    let resourceType = "image";
+    if (["pdf", "doc", "docx", "txt"].includes(extension)) {
+      resourceType = "raw";
+    } else if (["mp4", "avi", "mov"].includes(extension)) {
+      resourceType = "video";
+    }
 
-    // Update with new file URL
-    doc.documents.set(key, newFile.path);
+    await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+
+    // Update with new Cloudinary URL
+    doc.documents.set(key, newFile.path); // or newFile.url based on your Cloudinary storage
     await doc.save();
 
     res.json({ message: `Document '${key}' updated successfully.`, data: doc });
@@ -123,3 +143,4 @@ export const updateDocumentByKey = async (req, res) => {
       .json({ error: "Failed to update document.", details: err.message });
   }
 };
+
