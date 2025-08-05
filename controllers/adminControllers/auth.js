@@ -1,6 +1,6 @@
 import DepartmentalAdmin from "../../models/departmentalAdmin.js";
-import { comparePassword } from "../utils/password.js";
-import { generateToken } from "../utils/jwt.js";
+import { comparePassword } from "../../utils/password.js";
+import { generateToken } from "../../utils/jwt.js";
 
 export const loginAdmin = async (req, res) => {
   const { email, password } = req.body;

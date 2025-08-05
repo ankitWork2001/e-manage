@@ -7,7 +7,7 @@ import {
   getEmployeeDocuments,
   deleteDocumentByKey,
   updateDocumentByKey,
-} from "../controllers/documentControllers.js";
+} from "../controllers/documentController.js";
 
 const upload = multer({ storage });
 

@@ -1,6 +1,6 @@
-import Employee from "../models/Employee.js";
-import { comparePassword } from "../utils/password.js";
-import { generateToken } from "../utils/jwt.js";
+import Employee from "../../models/employeeModel.js";
+import { comparePassword } from "../../utils/password.js";
+import { generateToken } from "../../utils/jwt.js";
 
 export const loginEmployee = async (req, res) => {
   const { email, password } = req.body;

@@ -1,9 +1,9 @@
 // controllers/superAdminController.js
 import SuperAdmin from "../../models/SuperAdmin.js";
 import DepartmentalAdmin from "../../models/departmentalAdmin.js";
-import Department from "../../models/Department.js";
-import Employee from "../../models/Employee.js"; // Will need for employee transfer/global view later
-import { hashPassword } from "../../utils/paassword.js";
+import Department from "../../models/departmentModel.js";
+import Employee from "../../models/employeeModel.js"; // Will need for employee transfer/global view later
+import { hashPassword } from "../../utils/password.js";
 import mongoose from "mongoose"; // Import mongoose for isValidObjectId check
 
 export const loginSuperAdmin = async (req, res) => {
