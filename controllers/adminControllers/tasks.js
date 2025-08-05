@@ -1,27 +1,30 @@
 import Task from "../../models/taskModel.js";
 import Employee from "../../models/employeeModel.js";
 import mongoose from "mongoose";
+
 // --- Task Management (within department) ---
 
 export const assignTask = async (req, res) => {
-  const { title, description, deadline, assignedTo } = req.body; // assignedTo is employee ObjectId
+  // Corrected: assignedTo is now the employee's custom string ID (e.g., "EMP003")
+  const {
+    title,
+    description,
+    deadline,
+    assignedTo: customEmployeeId,
+  } = req.body;
   const adminDepartmentId = req.user.departmentId;
   const assignedById = req.user.adminId;
 
   try {
-    if (!title || !assignedTo) {
+    if (!title || !customEmployeeId) {
       return res
         .status(400)
-        .json({ message: "Title and assigned employee are required." });
-    }
-    if (!mongoose.isValidObjectId(assignedTo)) {
-      return res
-        .status(400)
-        .json({ message: "Invalid assignedTo employee ID format." });
+        .json({ message: "Title and assigned employee ID are required." });
     }
 
-    // Check if assignedTo employee exists and is in the admin's department
-    const employee = await Employee.findById(assignedTo);
+    // Corrected: Find the Employee document using their custom string ID
+    const employee = await Employee.findOne({ employeeId: customEmployeeId });
+
     if (
       !employee ||
       employee.department.toString() !== adminDepartmentId.toString()
@@ -32,11 +35,12 @@ export const assignTask = async (req, res) => {
       });
     }
 
+    // Now, use the employee's MongoDB _id (employee._id) for the new task
     const newTask = new Task({
       title,
       description,
       deadline,
-      assignedTo,
+      assignedTo: employee._id, // Use the MongoDB _id for the reference
       assignedBy: assignedById,
       status: "Pending", // Default status
     });
@@ -53,13 +57,16 @@ export const assignTask = async (req, res) => {
 
 export const getDepartmentTasks = async (req, res) => {
   const adminDepartmentId = req.user.departmentId;
-  const { status, assignedTo } = req.query; // Optional filters
+  // Corrected: assignedTo in query can now be custom employee ID string
+  const { status, assignedTo: queryEmployeeId } = req.query;
 
   try {
     const employeeIdsInDepartment = await Employee.find({
       department: adminDepartmentId,
     }).select("_id");
-    const employeeObjectIds = employeeIdsInDepartment.map((emp) => emp._id);
+    const employeeObjectIds = employeeIdsInDepartment.map((emp) =>
+      emp._id.toString()
+    ); // Convert to string for includes check
 
     let query = {
       $or: [
@@ -71,14 +78,26 @@ export const getDepartmentTasks = async (req, res) => {
     if (status) {
       query.status = status;
     }
-    if (assignedTo && mongoose.isValidObjectId(assignedTo)) {
-      // If a specific employee is requested, ensure they are in the department
-      if (!employeeObjectIds.includes(assignedTo)) {
+
+    // Corrected: Handle assignedTo filter using custom employee ID string
+    if (queryEmployeeId) {
+      const targetEmployee = await Employee.findOne({
+        employeeId: queryEmployeeId,
+      });
+      if (!targetEmployee) {
+        return res.status(404).json({ message: "Filter employee not found." });
+      }
+      // Ensure the target employee is in the admin's department
+      if (!employeeObjectIds.includes(targetEmployee._id.toString())) {
         return res.status(403).json({
           message: "Cannot filter tasks for employee outside your department.",
         });
       }
-      query.assignedTo = assignedTo;
+      // Override the $or condition to filter for this specific employee
+      query = { assignedTo: targetEmployee._id };
+      if (status) {
+        query.status = status; // Apply status filter if present
+      }
     }
 
     const tasks = await Task.find(query)
@@ -135,7 +154,14 @@ export const getTaskById = async (req, res) => {
 
 export const updateTask = async (req, res) => {
   const { id } = req.params; // Task MongoDB _id
-  const { title, description, deadline, status, assignedTo } = req.body;
+  // Corrected: assignedTo in body can now be custom employee ID string
+  const {
+    title,
+    description,
+    deadline,
+    status,
+    assignedTo: newAssignedToCustomId,
+  } = req.body;
   const adminDepartmentId = req.user.departmentId;
 
   try {
@@ -168,14 +194,14 @@ export const updateTask = async (req, res) => {
     if (deadline) task.deadline = deadline;
     if (status) task.status = status;
 
-    // Handle re-assigning task (only if to an employee within the same department)
-    if (assignedTo && assignedTo.toString() !== task.assignedTo.toString()) {
-      if (!mongoose.isValidObjectId(assignedTo)) {
-        return res
-          .status(400)
-          .json({ message: "Invalid assignedTo employee ID format." });
-      }
-      const newAssignedToEmployee = await Employee.findById(assignedTo);
+    // Corrected: Handle re-assigning task using custom employee ID string
+    if (
+      newAssignedToCustomId &&
+      newAssignedToCustomId !== task.assignedTo.employeeId
+    ) {
+      const newAssignedToEmployee = await Employee.findOne({
+        employeeId: newAssignedToCustomId,
+      });
       if (
         !newAssignedToEmployee ||
         newAssignedToEmployee.department.toString() !==
@@ -186,7 +212,7 @@ export const updateTask = async (req, res) => {
             "Cannot reassign task to an employee outside your department.",
         });
       }
-      task.assignedTo = assignedTo;
+      task.assignedTo = newAssignedToEmployee._id; // Use the MongoDB _id for the reference
     }
 
     await task.save();
@@ -268,9 +294,9 @@ export const addCommentToTask = async (req, res) => {
 
     task.comments.push({
       text,
-      postedBy: req.user.adminId,
+      postedBy: req.user.adminId, // Admin is posting comment
       postedAt: Date.now(),
-    }); // Admin is posting comment
+    });
     await task.save();
 
     res.status(200).json({ message: "Comment added successfully.", task });
@@ -281,27 +307,27 @@ export const addCommentToTask = async (req, res) => {
 };
 
 export const addAttachmentToTask = async (req, res) => {
-  // This is a placeholder. Real implementation needs file upload middleware (e.g., multer)
-  // and storage solution (e.g., AWS S3, local filesystem).
   const { id } = req.params; // Task MongoDB _id
-  const { fileName, fileUrl } = req.body; // In a real app, fileUrl would come from upload service
+  const adminDepartmentId = req.user.departmentId;
 
   try {
     if (!mongoose.isValidObjectId(id)) {
       return res.status(400).json({ message: "Invalid task ID format." });
     }
-    if (!fileName || !fileUrl) {
-      return res
-        .status(400)
-        .json({ message: "File name and URL are required." });
+
+    // Multer has processed the file and added req.file
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded." });
     }
+
+    // Corrected: Use secure_url from multer-cloudinary
+    const { originalname, secure_url } = req.file;
 
     const task = await Task.findById(id).populate("assignedTo", "department");
     if (!task) {
       return res.status(404).json({ message: "Task not found." });
     }
 
-    const adminDepartmentId = req.user.departmentId;
     const isAssignedByMe =
       task.assignedBy.toString() === req.user.adminId.toString();
     const isAssignedToMyDeptEmployee =
@@ -316,7 +342,11 @@ export const addAttachmentToTask = async (req, res) => {
       });
     }
 
-    task.attachments.push({ fileName, fileUrl, uploadedAt: Date.now() });
+    task.attachments.push({
+      fileName: originalname,
+      fileUrl: secure_url, // Use the Cloudinary secure URL
+      uploadedAt: Date.now(),
+    });
     await task.save();
 
     res.status(200).json({ message: "Attachment added successfully.", task });
