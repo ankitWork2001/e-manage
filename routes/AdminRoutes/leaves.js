@@ -15,6 +15,6 @@ router.use(authorizeRole(["DepartmentAdmin"]));
 
 // --- Leave Request Management (within department scope) ---
 router.get("/leave-requests", getDepartmentLeaveRequests); // Get all leave requests from their department
-router.put("/leave-requests/:id/status", updateLeaveRequestStatus); // Update status by MongoDB _id of leave request
+router.put("/leave-request/:id", updateLeaveRequestStatus); // Update status by MongoDB _id of leave request
 
 export default router;
