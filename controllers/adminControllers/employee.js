@@ -116,24 +116,18 @@ export const updateDepartmentEmployee = async (req, res) => {
         .json({ message: "Employee not found in your department." });
     }
 
-    if (name) employee.name = name;
-    if (email && email !== employee.email) {
-      // Check for email uniqueness if changed, excluding the current employee
-      const emailTaken = await Employee.findOne({
-        email,
-        _id: { $ne: employee._id },
-      });
-      if (emailTaken) {
-        return res
-          .status(400)
-          .json({ message: "Email already in use by another employee." });
-      }
-      employee.email = email;
+    if (!name || !email || !phone || !position || !dateOfJoining || !status) {
+      return res
+        .status(400)
+        .json({ message: "Require all fields to be updated." });
     }
-    if (phone) employee.phone = phone;
-    if (position) employee.position = position;
-    if (dateOfJoining) employee.dateOfJoining = dateOfJoining;
-    if (status) employee.status = status; // Consider enum validation if not handled by schema
+    // Update employee details
+    employee.name = name;
+    employee.email = email;
+    employee.phone = phone;
+    employee.position = position;
+    employee.dateOfJoining = dateOfJoining;
+    employee.status = status; // Consider enum validation if not handled by schema
 
     await employee.save();
     res

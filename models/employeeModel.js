@@ -12,7 +12,6 @@ const employeeSchema = new mongoose.Schema(
       // Changed to ObjectId reference
       type: mongoose.Schema.Types.ObjectId,
       ref: "Department",
-      required: true,
     },
     dateOfJoining: { type: Date },
     salary: { type: Number }, // Kept for current basic salary, access restricted by HR role

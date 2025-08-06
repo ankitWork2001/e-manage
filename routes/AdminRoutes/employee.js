@@ -15,9 +15,9 @@ const router = Router();
 router.use(authenticateToken);
 router.use(authorizeRole(["DepartmentAdmin"]));
 
-router.get("/employees", getDepartmentEmployees); // Gets employees only from admin's department
-router.get("/employees/:employeeId", getDepartmentEmployeeById); // Specific employee by their custom employeeId string
-router.put("/employees/:employeeId", updateDepartmentEmployee); // Update employee details
-router.put("/employees/:employeeId/status", updateEmployeeStatus); // Deactivate/Activate employee
+router.get("/", getDepartmentEmployees); // Gets employees only from admin's department
+router.get("/:employeeId", getDepartmentEmployeeById); // Specific employee by their custom employeeId string
+router.put("/:employeeId", updateDepartmentEmployee); // Update employee details
+router.put("/:employeeId/status", updateEmployeeStatus); // Deactivate/Activate employee
 
 export default router;

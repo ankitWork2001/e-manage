@@ -1,5 +1,8 @@
 import { Router } from "express";
-import { addEmployeeToDepartment } from "../../controllers/adminControllers/department.js";
+import {
+  addEmployeeToDepartment,
+  removeEmployeeFromDepartment,
+} from "../../controllers/adminControllers/department.js";
 import {
   authenticateToken,
   authorizeRole,
@@ -9,6 +12,8 @@ const router = Router();
 
 router.use(authenticateToken);
 router.use(authorizeRole(["SuperAdmin", "DepartmentAdmin"]));
+
 router.post("/add-employee", addEmployeeToDepartment);
+router.delete("/remove-employee", removeEmployeeFromDepartment);
 
 export default router;
