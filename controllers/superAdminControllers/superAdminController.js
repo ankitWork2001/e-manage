@@ -3,15 +3,16 @@ import SuperAdmin from "../../models/SuperAdmin.js";
 import DepartmentalAdmin from "../../models/departmentalAdmin.js";
 import Department from "../../models/departmentModel.js";
 import Employee from "../../models/employeeModel.js"; // Will need for employee transfer/global view later
-import { hashPassword } from "../../utils/password.js";
+import { hashPassword, comparePassword } from "../../utils/password.js";
 import mongoose from "mongoose"; // Import mongoose for isValidObjectId check
+import { generateToken, verifyToken } from "../../utils/jwt.js"; // Note: Added verifyToken
 
 export const loginSuperAdmin = async (req, res) => {
   const { email, password } = req.body;
   try {
     const superAdmin = await SuperAdmin.findOne({ email });
     if (!superAdmin) {
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.status(400).json({ message: "Not found" });
     }
 
     const isMatch = await comparePassword(password, superAdmin.password);
@@ -23,8 +24,14 @@ export const loginSuperAdmin = async (req, res) => {
       superAdminId: superAdmin._id,
       role: "SuperAdmin",
     });
+    res.cookie("token", token, {
+      maxAge: 1000 * 60 * 60 * 24 * 1, // 1 days in milliseconds
+      httpOnly: true, // Prevents client-side JavaScript from accessing the cookie
+      sameSite: "strict", // Protects against CSRF attacks
+      secure: process.env.NODE_ENV === "production", // Use secure cookies in production
+    });
     res.json({
-      token,
+      message: "Login successful",
       role: "SuperAdmin",
       superAdminId: superAdmin._id,
       name: superAdmin.name,
