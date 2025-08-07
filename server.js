@@ -42,6 +42,9 @@ const limiter = rateLimit({
   max: 100,
 });
 app.use("/api", limiter);
+app.get("/", (req, res) => {
+  res.send("✅ E-Manage API is running.");
+});
 
 // Routes
 
