@@ -21,7 +21,7 @@ import {
 
 const router = express.Router();
 
-router.post("/superadmin/login", loginSuperAdmin);
+router.post("/login", loginSuperAdmin);
 
 // All Super Admin routes should be protected
 router.use(authenticateToken);
