@@ -89,8 +89,8 @@ export const applyForLeave = async (req, res) => {
     }
     const leave = new Leave({
       employeeId,
-      startDate,
-      endDate,
+      fromDate:startDate,
+      toDate:endDate,
       reason,
     });
     await leave.save();
