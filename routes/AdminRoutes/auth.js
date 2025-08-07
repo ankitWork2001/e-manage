@@ -1,10 +1,12 @@
-import {Router} from "express";
-import {adminLogin, adminLogout} from "../../controllers/adminControllers/auth.js";
+import express from "express";
+import {
+  loginAdmin,
+  logoutAdmin,
+} from "../../controllers/adminControllers/auth.js";
 
-const router = Router();
+const router = express.Router();
 
-router.post("/login",adminLogin);
-router.post("/logout",adminLogout);
-
+router.post("/login", loginAdmin);
+router.post("/logout", logoutAdmin);
 
 export default router;

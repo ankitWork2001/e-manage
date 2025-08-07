@@ -17,7 +17,11 @@ import employeeTaskRoutes from "./routes/EmployeeRoutes/tasks.js";
 import adminRoutes from "./routes/AdminRoutes/auth.js";
 import departmentRoutes from "./routes/AdminRoutes/department.js";
 import adminTaskRoutes from "./routes/AdminRoutes/tasks.js";
-
+import superAdminRoutes from "./routes/superAdminRoutes.js";
+import documentRoutes from "./routes/documentRoutes.js";
+import adminEmployeeRoutes from "./routes/AdminRoutes/employee.js";
+import adminAttendanceRoutes from "./routes/AdminRoutes/attendance.js";
+import adminLeaveRoutes from "./routes/AdminRoutes/leaves.js";
 dotenv.config();
 connectDB();
 
@@ -40,6 +44,10 @@ const limiter = rateLimit({
 app.use("/api", limiter);
 
 // Routes
+
+//Super Admin routes
+app.use("/api/superadmin", superAdminRoutes);
+
 // Employee Authentication routes
 app.use("/api/auth/employee", employeeAuthRoutes);
 
@@ -47,10 +55,15 @@ app.use("/api/auth/employee", employeeAuthRoutes);
 app.use("/api/employee", employeeRoutes);
 app.use("/api/employee/tasks", employeeTaskRoutes); // Employee's view of tasks
 
-// HR/Admin Panel routes
+app.use("/api/employee/documents/", documentRoutes); // Employee's view of documents
+
+// Departmental Admin routes
 app.use("/api/admin", adminRoutes);
-app.use("/api/admin/departments", departmentRoutes); // Admin department routes
+app.use("/api/admin/department", departmentRoutes); // Admin department routes
+app.use("/api/admin/attendance", adminAttendanceRoutes); // Admin's view of attendance
 app.use("/api/admin/tasks", adminTaskRoutes);
+app.use("/api/admin/leaves", adminLeaveRoutes); // Admin's view of leaves
+app.use("/api/admin/employees", adminEmployeeRoutes); // Admin's view of employees
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

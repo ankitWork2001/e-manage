@@ -55,36 +55,6 @@ export const updateEmployeeProfile = async (req, res) => {
   }
 };
 
-export const recordAttendance = async (req, res) => {
-  const employeeId = req.params.id;
-  try {
-    const employee = await Employee.findById(employeeId);
-    if (!employee) {
-      return res.status(404).json({ message: "Employee not found" });
-    }
-    const { date, reason } = req.body;
-    if (!date || !reason) {
-      return res
-        .status(400)
-        .json({ message: "All fields (date, reason) are required" });
-    }
-    const attendance = new Attendance({
-      employeeId,
-      date,
-      reason,
-    });
-    await attendance.save();
-    res
-      .status(201)
-      .json({ message: "Attendance recorded successfully", attendance });
-  } catch (error) {
-    res.status(500).json({
-      message: "Error recording attendance",
-      error: error.message,
-    });
-  }
-};
-
 export const getAttendanceReport = async (req, res) => {
   const employeeId = req.params.id;
   try {

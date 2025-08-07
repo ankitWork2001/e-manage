@@ -1,39 +1,70 @@
-import adminModel from "../../models/adminModel.js";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import DepartmentalAdmin from "../../models/departmentalAdmin.js";
+import { comparePassword } from "../../utils/password.js";
+import { generateToken, verifyToken } from "../../utils/jwt.js"; // Note: Added verifyToken
+import jwt from "jsonwebtoken"; // You'll need this for logout logic
+import dotenv from "dotenv";
 
-// Secret for JWT
-const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key";
-const JWT_Expires = process.env.JWT_Expires || "1h" ;
+dotenv.config();
 
-export const adminLogin = async (req, res) => {
+export const loginAdmin = async (req, res) => {
+  const { email, password } = req.body;
   try {
-    const { email, password } = req.body;
+    // 1. Find the admin by email
+    const admin = await DepartmentalAdmin.findOne({ email });
+    if (!admin) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
 
-    const admin = await adminModel.findOne({ email });
-    if (!admin) return res.status(404).json({ message: "Admin not found" });
+    // 2. Compare the provided password with the stored hash
+    const isMatch = await comparePassword(password, admin.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
 
-    const isMatch = await bcrypt.compare(password, admin.password);
-    if (!isMatch) return res.status(401).json({ message: "Invalid credentials" });
+    // 3. Generate a JWT upon successful login
+    const token = generateToken({
+      adminId: admin._id,
+      role: "DepartmentAdmin",
+      departmentId: admin.department,
+    });
 
-    const token = jwt.sign({ id: admin._id }, JWT_SECRET, { expiresIn:  JWT_Expires });
+    // 4. Set the token in a secure, http-only cookie
+    res.cookie("token", token, {
+      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days in milliseconds
+      httpOnly: true, // Prevents client-side JavaScript from accessing the cookie
+      sameSite: "strict", // Protects against CSRF attacks
+      secure: process.env.NODE_ENV === "production", // Only send cookie over HTTPS in production
+    });
 
-     res.setHeader("Authorization", `Bearer ${token}`);
+    // 5. Respond with a success message and non-sensitive details
     res.status(200).json({
       message: "Login successful",
-      user : admin,
-      token,
+      role: "DepartmentAdmin",
+      adminId: admin._id,
+      departmentId: admin.department,
+      name: admin.name,
     });
-  } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
+  } catch (error) {
+    console.error(error);
+    res
+      .status(500)
+      .json({ message: "Server error during Departmental Admin login" });
   }
 };
 
-export const adminLogout = async (req, res) => {
+export const logoutAdmin = async (req, res) => {
   try {
-    res.setHeader("Authorization", ``);
-    res.status(200).json({ message: "Logout successful" });
-  } catch (err) {
-    res.status(500).json({ message: "Server error", error: err.message });
+    // 1. Clear the token cookie to end the session
+    res.clearCookie("token", {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: process.env.NODE_ENV === "production",
+    });
+
+    // 2. Send a success message
+    res.status(200).json({ message: "Logged out successfully." });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error during logout." });
   }
 };

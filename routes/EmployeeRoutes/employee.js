@@ -2,19 +2,23 @@ import { Router } from "express";
 import {
   getEmployeeProfile,
   updateEmployeeProfile,
-  recordAttendance,
   getAttendanceReport,
   applyForLeave,
   getEmployeePayslip,
 } from "../../controllers/employeeControllers/employee.js";
-
+import {
+  authenticateToken,
+  authorizeRole,
+} from "../../middleware/authmiddleware.js";
 const router = Router();
 
-router.get("/profile", getEmployeeProfile);
-router.put("/update", updateEmployeeProfile);
-router.post("/attendance", recordAttendance);
-router.get("/attendance-report", getAttendanceReport);
-router.post("/leave", applyForLeave);
-router.get("/payslip", getEmployeePayslip);
+router.use(authenticateToken);
+router.use(authorizeRole(["Employee"]));
+
+router.get("/profile/:id", getEmployeeProfile);
+router.put("/update/:id", updateEmployeeProfile);
+router.get("/attendance-report/:id", getAttendanceReport);
+router.post("/leave/:id", applyForLeave);
+router.get("/payslip/:id", getEmployeePayslip);
 
 export default router;

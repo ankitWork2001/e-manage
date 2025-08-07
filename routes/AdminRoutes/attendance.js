@@ -1,11 +1,22 @@
-import {Router} from "express";
-import {getAttendanceReport, markAttendance, unmarkAttendance} from "../../controllers/adminControllers/attendance.js";
+import { Router } from "express";
+import {
+  getDepartmentAttendance,
+  markEmployeeAttendance,
+  getEmployeeAttendance,
+} from "../../controllers/adminControllers/attendance.js";
+import {
+  authenticateToken,
+  authorizeRole,
+} from "../../middleware/authmiddleware.js";
 
 const router = Router();
 
-router.get('/attendance/:employeeId', getAttendanceReport);
-router.put('/attendance/mark/:employeeId', markAttendance);
-router.put('/attendance/unmark/:employeeId', unmarkAttendance);
+router.use(authenticateToken);
+router.use(authorizeRole(["DepartmentAdmin"]));
 
+// --- Attendance Management (within department scope) ---
+router.get("/department", getDepartmentAttendance); // Fetch attendance for department
+router.post("/:employeeId/mark", markEmployeeAttendance); // Mark/update attendance for an employee
+router.get("/:employeeId", getEmployeeAttendance); // Get attendance for a specific employee by ID
 
 export default router;

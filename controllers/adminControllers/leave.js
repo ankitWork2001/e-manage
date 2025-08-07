@@ -1,129 +1,88 @@
-import leaveModel from "../../models/leaveRequestModel.js";
-import attendanceModel from "../../models/attendanceModel.js";
-import employeeModel from "../../models/employeeModel.js";
+import LeaveRequest from "../../models/leaveRequestModel.js";
+import Employee from "../../models/employeeModel.js";
+import mongoose from "mongoose";
 
-export const getAllTodayLeaves = async (req, res) => {
+// --- Leave Request Management (within department) ---
+
+export const getDepartmentLeaveRequests = async (req, res) => {
+  const adminDepartmentId = req.user.departmentId;
+  const { status } = req.query; // Optional filter: 'Pending', 'Approved', 'Rejected'
+
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const employeeIdsInDepartment = await Employee.find({
+      department: adminDepartmentId,
+    }).select("_id");
+    const employeeObjectIds = employeeIdsInDepartment.map((emp) => emp._id);
 
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
+    let query = { employeeId: { $in: employeeObjectIds } };
+    if (status) {
+      query.status = status;
+    }
 
-    const leaves = await leaveModel
-      .find({
-        fromDate: { $lt: tomorrow },
-        toDate: { $gte: today },
-        status: "Approved",
-      })
-      .populate("employeeId", "name email");
+    const leaveRequests = await LeaveRequest.find(query)
+      .populate("employeeId", "name employeeId department")
+      .sort({ createdAt: -1 });
 
-    res.status(200).json(leaves);
+    res.status(200).json(leaveRequests);
   } catch (error) {
+    console.error(error);
     res
       .status(500)
-      .json({ message: "Error fetching today's leaves", error: error.message });
+      .json({ message: "Server error fetching department leave requests." });
   }
 };
 
-export const getLeaveById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const leave = await leaveModel
-      .findById(id)
-      .populate("employeeId", "name email");
-    if (!leave) {
-      return res.status(404).json({ message: "Leave request not found" });
-    }
-    res.status(200).json(leave);
-  } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error fetching leave request", error: error.message });
+export const updateLeaveRequestStatus = async (req, res) => {
+  const { id } = req.params; // Leave request MongoDB _id
+  const { status } = req.body; // 'Approved' or 'Rejected'
+  const adminDepartmentId = req.user.departmentId;
+
+  if (!mongoose.isValidObjectId(id)) {
+    return res
+      .status(400)
+      .json({ message: "Invalid leave request ID format." });
   }
-};
-
-export const rejectLeave = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const leave = await leaveModel.findById(id);
-
-    if (!leave) {
-      return res.status(404).json({ message: "Leave request not found" });
-    }
-    if (leave.status !== "Pending") {
-      return res
-        .status(400)
-        .json({ message: `Leave already ${leave.status.toLowerCase()}` });
-    }
-
-    leave.status = "Rejected";
-    await leave.save();
-
-    res.status(200).json({ message: "Leave request rejected", leave });
-  } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error rejecting leave request", error: error.message });
-  }
-};
-
-export const getAllLeavesOfEmployee = async (req, res) => {
-  try {
-    const { employeeId } = req.params;
-
-    const employee = await employeeModel.findById(employeeId);
-    if (!employee) {
-      return res.status(404).json({ message: "Employee not found" });
-    }
-
-    const leaves = await leaveModel.find({ employeeId: employeeId });
-    res.status(200).json(leaves);
-  } catch (error) {
-    res.status(500).json({
-      message: "Error fetching employee leave requests",
-      error: error.message,
+  if (!["Approved", "Rejected"].includes(status)) {
+    return res.status(400).json({
+      message: "Invalid leave status provided. Must be Approved or Rejected.",
     });
   }
-};
 
-export const approveLeave = async (req, res) => {
   try {
-    const { id } = req.params;
-    const leave = await leaveModel.findById(id);
-
-    if (!leave) {
-      return res.status(404).json({ message: "Leave request not found" });
-    }
-    if (leave.status !== "Pending") {
-      return res
-        .status(400)
-        .json({ message: `Leave already ${leave.status.toLowerCase()}` });
+    const leaveRequest = await LeaveRequest.findById(id).populate("employeeId");
+    if (!leaveRequest) {
+      return res.status(404).json({ message: "Leave request not found." });
     }
 
-    leave.status = "Approved";
-    await leave.save();
-
-    const attendanceRecords = [];
-    let currentDate = new Date(leave.fromDate);
-    while (currentDate <= leave.toDate) {
-      attendanceRecords.push({
-        employeeId: leave.employeeId,
-        date: new Date(currentDate),
-        status: "Leave",
+    // Ensure the leave request belongs to an employee in this admin's department
+    if (
+      !leaveRequest.employeeId ||
+      leaveRequest.employeeId.department.toString() !==
+        adminDepartmentId.toString()
+    ) {
+      return res.status(403).json({
+        message:
+          "Access denied: Leave request not in your department or employee not found.",
       });
-      currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    if (attendanceRecords.length > 0) {
-      await attendanceModel.insertMany(attendanceRecords);
+    if (leaveRequest.status !== "Pending") {
+      return res.status(400).json({
+        message: `Leave request already ${leaveRequest.status}. Cannot be changed.`,
+      });
     }
 
-    res.status(200).json({ message: "Leave request approved", leave });
-  } catch (error) {
-    res.status(500).json({
-      message: "Error approving leave request",
-      error: error.message,
+    leaveRequest.status = status;
+    await leaveRequest.save();
+
+    res.status(200).json({
+      message: `Leave request ${status.toLowerCase()} successfully`,
+      leaveRequest,
     });
+  } catch (error) {
+    console.error(error);
+    res
+      .status(500)
+      .json({ message: "Server error updating leave request status." });
   }
 };

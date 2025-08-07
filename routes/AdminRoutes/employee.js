@@ -1,13 +1,23 @@
-import {Router} from "express";
-import {getAllEmployees, getEmployeeById, createEmployee, updateEmployee, blockEmployee, activateBlockedEmployee} from "../../controllers/adminControllers/employee.js";
+import { Router } from "express";
+import {
+  getDepartmentEmployees,
+  getDepartmentEmployeeById,
+  updateDepartmentEmployee,
+  updateEmployeeStatus,
+} from "../../controllers/adminControllers/employee.js";
+import {
+  authenticateToken,
+  authorizeRole,
+} from "../../middleware/authmiddleware.js";
 
 const router = Router();
 
-router.get('/employees', getAllEmployees);
-router.get('/employees/:employeeId', getEmployeeById);
-router.post('/employees/create', createEmployee);
-router.put('/employees/:id', updateEmployee);
-router.patch('/employees/block/:employeeId', blockEmployee);
-router.patch('/employees/activate/:employeeId', activateBlockedEmployee);
+router.use(authenticateToken);
+router.use(authorizeRole(["DepartmentAdmin"]));
+
+router.get("/", getDepartmentEmployees); // Gets employees only from admin's department
+router.get("/:employeeId", getDepartmentEmployeeById); // Specific employee by their custom employeeId string
+router.put("/:employeeId", updateDepartmentEmployee); // Update employee details
+router.put("/:employeeId/status", updateEmployeeStatus); // Deactivate/Activate employee
 
 export default router;
