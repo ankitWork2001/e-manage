@@ -1,5 +1,5 @@
 // controllers/superAdminController.js
-import SuperAdmin from "../../models/SuperAdmin.js";
+import SuperAdmin from "../../models/superAdmin.js";
 import DepartmentalAdmin from "../../models/departmentalAdmin.js";
 import Department from "../../models/departmentModel.js";
 import Employee from "../../models/employeeModel.js"; // Will need for employee transfer/global view later
