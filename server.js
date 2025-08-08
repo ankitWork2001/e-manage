@@ -22,6 +22,8 @@ import documentRoutes from "./routes/documentRoutes.js";
 import adminEmployeeRoutes from "./routes/AdminRoutes/employee.js";
 import adminAttendanceRoutes from "./routes/AdminRoutes/attendance.js";
 import adminLeaveRoutes from "./routes/AdminRoutes/leaves.js";
+import payrollRoutes from "./routes/AdminRoutes/payroll.js";
+
 dotenv.config();
 connectDB();
 
@@ -67,6 +69,7 @@ app.use("/api/admin/attendance", adminAttendanceRoutes); // Admin's view of atte
 app.use("/api/admin/tasks", adminTaskRoutes);
 app.use("/api/admin/leaves", adminLeaveRoutes); // Admin's view of leaves
 app.use("/api/admin/employees", adminEmployeeRoutes); // Admin's view of employees
+app.use("/api/admin/payroll", payrollRoutes); // Admin's view of payroll
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

@@ -3,26 +3,25 @@ import Employee from "../../models/employeeModel.js";
 import Payroll from "../../models/payrollModel.js";
 
 export const generatePayroll = async (req, res) => {
-  // This function would typically be called by an HR admin
-  // The authorizeHRAdmin middleware handles access control for this route.
-  const { employeeId, basicSalary, hra, deductions, month, year } = req.body;
+  const { employeeId, hra, deductions, month, year } = req.body;
 
   try {
     if (!mongoose.isValidObjectId(employeeId)) {
       return res.status(400).json({ message: "Invalid employee ID format." });
-    }
+    } 
 
     const employee = await Employee.findById(employeeId);
     if (!employee) {
       return res.status(404).json({ message: "Employee not found." });
-    }
+    } 
 
-    // Calculate net salary
+    const basicSalary = employee.salary; // Calculate net salary
+
     const netSalary = basicSalary + hra - deductions;
 
     const newPayroll = new Payroll({
       employeeId,
-      basicSalary,
+      basicSalary, // Now this is guaranteed to be correct
       hra,
       deductions,
       netSalary,
@@ -36,11 +35,9 @@ export const generatePayroll = async (req, res) => {
       .json({ message: "Payroll generated successfully", payroll: newPayroll });
   } catch (error) {
     console.error(error);
-    // Handle unique index violation (duplicate payroll for month/year)
     if (error.code === 11000) {
       return res.status(409).json({
-        message:
-          "Payslip for this employee and month/year already exists for the given period.",
+        message: "Payslip for this employee and month/year already exists.",
       });
     }
     res.status(500).json({ message: "Server error generating payroll." });

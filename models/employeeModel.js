@@ -14,7 +14,7 @@ const employeeSchema = new mongoose.Schema(
       ref: "Department",
     },
     dateOfJoining: { type: Date },
-    salary: { type: Number }, // Kept for current basic salary, access restricted by HR role
+    salary: { type: Number }, // **Kept for current basic salary**, access restricted by HR role
     status: { type: String, enum: ["Active", "Inactive"], default: "Active" },
   },
   { timestamps: true }
