@@ -25,7 +25,7 @@ export const loginSuperAdmin = async (req, res) => {
       role: "SuperAdmin",
     });
     res.cookie("token", token, {
-      maxAge: 1000 * 60 * 60 * 24 * 1, // 1 days in milliseconds
+      maxAge: 1000 * 60 * 60 * 24 * 1, // 1 day in milliseconds
       httpOnly: true, // Prevents client-side JavaScript from accessing the cookie
       sameSite: "strict", // Protects against CSRF attacks
       secure: process.env.NODE_ENV === "production", // Use secure cookies in production
@@ -41,6 +41,7 @@ export const loginSuperAdmin = async (req, res) => {
     res.status(500).json({ message: "Server error during Super Admin login" });
   }
 };
+
 // --- Departmental Admin Management ---
 
 export const createDepartmentalAdmin = async (req, res) => {
@@ -55,13 +56,6 @@ export const createDepartmentalAdmin = async (req, res) => {
     const departmentExists = await Department.findById(departmentId);
     if (!departmentExists) {
       return res.status(404).json({ message: "Department not found." });
-    }
-
-    // 3. Check if department already has an admin assigned
-    if (departmentExists.admin) {
-      return res.status(400).json({
-        message: `Department "${departmentExists.name}" already has an admin assigned.`,
-      });
     }
 
     // 4. Check if email is already used by an Admin or SuperAdmin
@@ -85,16 +79,17 @@ export const createDepartmentalAdmin = async (req, res) => {
       email,
       password: hashedPassword,
       department: departmentId,
-      role: "DepartmentAdmin", // Explicitly set role
+      role: "DepartmentAdmin",
     });
     await newAdmin.save();
 
-    // 6. Link the new admin to the department
-    departmentExists.admin = newAdmin._id;
+    // 6. Link the new admin to the department's admins array
+    departmentExists.admins.push(newAdmin._id);
     await departmentExists.save();
 
     res.status(201).json({
-      message: "Departmental Admin created successfully",
+      message:
+        "Departmental Admin created successfully and assigned to department",
       admin: newAdmin,
     });
   } catch (error) {
@@ -169,33 +164,22 @@ export const updateDepartmentalAdmin = async (req, res) => {
       if (!newDepartment) {
         return res.status(404).json({ message: "New department not found." });
       }
-      if (newDepartment.admin && newDepartment.admin.toString() !== id) {
-        return res.status(400).json({
-          message: `New department "${newDepartment.name}" already has an admin assigned.`,
-        });
-      }
 
-      // Unlink from old department
-      const oldDepartment = await Department.findById(admin.department);
-      if (
-        oldDepartment &&
-        oldDepartment.admin &&
-        oldDepartment.admin.toString() === id
-      ) {
-        oldDepartment.admin = undefined; // Unset the admin reference
-        await oldDepartment.save();
-      }
+      // Unlink from old department's admins array
+      await Department.findByIdAndUpdate(admin.department, {
+        $pull: { admins: admin._id },
+      });
 
-      // Link to new department
-      newDepartment.admin = admin._id;
+      // Link to new department's admins array
+      newDepartment.admins.push(admin._id);
       await newDepartment.save();
+
       admin.department = departmentId;
     }
 
-    // Update fields
+    // Update other fields
     if (name) admin.name = name;
     if (email && email !== admin.email) {
-      // Check for email uniqueness if changed
       const emailTaken = await DepartmentalAdmin.findOne({
         email,
         _id: { $ne: id },
@@ -233,12 +217,12 @@ export const deleteDepartmentalAdmin = async (req, res) => {
       return res.status(404).json({ message: "Departmental Admin not found." });
     }
 
-    // Also unlink the admin from the department
-    const department = await Department.findOneAndUpdate(
-      { admin: id },
-      { $unset: { admin: 1 } }, // Remove the admin field
-      { new: true }
-    );
+    // Also unlink the admin from the department's admins array if they belonged to one
+    if (admin.department) {
+      await Department.findByIdAndUpdate(admin.department, {
+        $pull: { admins: admin._id },
+      });
+    }
 
     res
       .status(200)
@@ -278,7 +262,10 @@ export const createDepartment = async (req, res) => {
 
 export const getAllDepartments = async (req, res) => {
   try {
-    const departments = await Department.find().populate("admin", "name email"); // Populate admin details
+    const departments = await Department.find().populate(
+      "admins",
+      "name email"
+    ); // Populate admin details
     res.status(200).json(departments);
   } catch (error) {
     console.error(error);
@@ -293,7 +280,7 @@ export const getDepartmentById = async (req, res) => {
       return res.status(400).json({ message: "Invalid Department ID format." });
     }
     const department = await Department.findById(id).populate(
-      "admin",
+      "admins",
       "name email"
     );
     if (!department) {
@@ -349,7 +336,12 @@ export const deleteDepartment = async (req, res) => {
       return res.status(400).json({ message: "Invalid Department ID format." });
     }
 
-    // Before deleting department, ensure no employees are linked to it or handle them
+    const departmentToDelete = await Department.findById(id);
+    if (!departmentToDelete) {
+      return res.status(404).json({ message: "Department not found." });
+    }
+
+    // Before deleting, ensure no employees are linked to it
     const employeesInDepartment = await Employee.countDocuments({
       department: id,
     });
@@ -360,39 +352,30 @@ export const deleteDepartment = async (req, res) => {
       });
     }
 
-    // If an admin is linked, their department field will become invalid.
-    // We should either delete the admin too or unset their department link explicitly.
-    // For now, let's unset the admin's department.
-    const linkedAdmin = await DepartmentalAdmin.findOneAndUpdate(
+    // Unlink all admins associated with this department
+    await DepartmentalAdmin.updateMany(
       { department: id },
-      { $unset: { department: 1 } },
-      { new: true }
+      { $unset: { department: 1 } }
     );
-    if (linkedAdmin) {
-      // Also remove the admin reference from the department itself if it wasn't already null
-      await Department.findByIdAndUpdate(id, { $unset: { admin: 1 } });
-    }
 
-    const department = await Department.findByIdAndDelete(id);
-    if (!department) {
-      return res.status(404).json({ message: "Department not found." });
-    }
+    // Now, delete the department
+    await Department.findByIdAndDelete(id);
 
-    res
-      .status(200)
-      .json({ message: "Department deleted successfully.", department });
+    res.status(200).json({
+      message: "Department and all its admin links deleted successfully.",
+      department: departmentToDelete,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error deleting department." });
   }
 };
 
-// --- Global Employee Oversight (Remaining TODOs from previous) ---
+// --- Global Employee Oversight ---
 
 export const getAllEmployeesGlobal = async (req, res) => {
   try {
-    // Only HR admin should see salary, or implement separate route for salary view.
-    // For now, SuperAdmin sees all, but exclude sensitive info like password
+    // SuperAdmin sees all, but exclude sensitive info like password
     const employees = await Employee.find()
       .select("-password")
       .populate("department", "name");
